@@ -215,8 +215,18 @@ class BayrolClient:
             json={"device": cid, "action": "setCode", "data": {"code": pin}},
         ) as resp:
             body = await resp.text()
-            if resp.status != 200 or '"error":""' not in body:
-                raise BayrolApiError(f"setCode failed: HTTP {resp.status} body={body[:200]}")
+            if resp.status != 200:
+                raise BayrolApiError(f"setCode failed: HTTP {resp.status}")
+            # SALT firmware (and likely other newer models) returns
+            # ``{"access": false, "error": "Acces is not available!"}`` —
+            # the legacy PIN gateway is just absent on these devices. Treat
+            # that as a PIN error so the caller can degrade gracefully.
+            if '"access":false' in body or "is not available" in body:
+                raise BayrolPinError(
+                    "Bayrol legacy PIN gateway not available for this device"
+                )
+            if '"error":""' not in body:
+                raise BayrolApiError(f"setCode failed: body={body[:200]}")
 
         async with self._session.post(
             json_url,

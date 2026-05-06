@@ -77,15 +77,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass, client, controllers, interval, settings_pin=settings_pin
     )
 
-    # Authorize once up-front so the user gets immediate feedback if the PIN is wrong.
+    # Try to unlock legacy data_json.php writes. Newer SALT firmware doesn't
+    # expose this endpoint at all (responds with ``access: false`` regardless
+    # of the PIN), so a failure here is fine — control still works via MQTT.
     if settings_pin:
         for controller in controllers:
             try:
                 await coordinator.async_authorize(controller.cid)
-            except BayrolPinError:
-                _LOGGER.warning(
-                    "Bayrol settings PIN rejected for cid=%s; selects will be read-only",
+            except BayrolPinError as err:
+                _LOGGER.info(
+                    "Legacy PIN gateway not available for cid=%s (%s); "
+                    "control remains via MQTT.",
                     controller.cid,
+                    err,
                 )
                 coordinator.settings_pin = None
                 break

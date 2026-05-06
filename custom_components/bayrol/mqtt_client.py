@@ -119,12 +119,24 @@ class BayrolMqttClient:
         )
         # Username = accessToken; password literal '*' (per SPA DeviceDriver.js).
         client.username_pw_set(self._access_token, "*")
-        client.tls_set_context(ssl.create_default_context())
+
+        # ssl.create_default_context() walks the system CA store synchronously,
+        # which Home Assistant's event-loop guard flags as a blocking call. Run
+        # it in the default executor so the loop stays responsive.
+        ssl_context = await self._loop.run_in_executor(
+            None, ssl.create_default_context
+        )
+        client.tls_set_context(ssl_context)
         client.on_connect = self._on_connect
         client.on_message = self._on_message
         client.on_disconnect = self._on_disconnect
 
-        client.connect_async(BROKER_HOST, BROKER_PORT, keepalive=60)
+        # connect_async itself can resolve DNS synchronously on some platforms;
+        # keep the call cheap by deferring the actual TCP/TLS handshake to the
+        # paho network thread (loop_start), which is exactly what it does.
+        await self._loop.run_in_executor(
+            None, lambda: client.connect_async(BROKER_HOST, BROKER_PORT, 60)
+        )
         client.loop_start()
         self._client = client
 
@@ -184,7 +196,13 @@ class BayrolMqttClient:
         reason_code: Any,
         _properties: Any = None,
     ) -> None:
-        if int(reason_code) != 0:
+        # paho-mqtt 2.x with VERSION2 callbacks delivers a ReasonCode object,
+        # not a plain int. ReasonCode.is_failure is the canonical way to check.
+        failed = getattr(reason_code, "is_failure", None)
+        if failed is None:
+            # paho 1.x or fallback path — assume integer-ish.
+            failed = int(reason_code) != 0
+        if failed:
             _LOGGER.error("Bayrol MQTT broker rejected connection: %s", reason_code)
             self._loop.call_soon_threadsafe(self._connected.set)
             return

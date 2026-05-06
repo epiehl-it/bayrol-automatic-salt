@@ -63,17 +63,24 @@ class BayrolConfigFlow(ConfigFlow, domain=DOMAIN):
                     errors["base"] = "no_controllers"
                 else:
                     pin = (user_input.get(CONF_SETTINGS_PIN) or "").strip()
+                    # PIN validation is best-effort. Newer SALT firmware does
+                    # not implement the data_json.php setCode path at all and
+                    # responds with ``"access": false`` regardless of the PIN
+                    # value — those devices are controlled exclusively via
+                    # MQTT, which authenticates via the iframe applink code.
+                    # We log the outcome but never block setup on it.
                     if pin:
-                        # The PIN is account-wide; validating against the first
-                        # controller is enough.
                         try:
                             await client.authorize_settings(controllers[0].cid, pin)
                         except BayrolPinError as err:
-                            _LOGGER.warning("Bayrol PIN rejected: %s", err)
-                            errors["base"] = "invalid_pin"
+                            _LOGGER.info(
+                                "Bayrol legacy PIN gateway not available for cid=%s: %s. "
+                                "MQTT control is unaffected.",
+                                controllers[0].cid,
+                                err,
+                            )
                         except (BayrolApiError, aiohttp.ClientError) as err:
-                            _LOGGER.warning("PIN validation failed: %s", err)
-                            errors["base"] = "cannot_connect"
+                            _LOGGER.warning("PIN validation network error: %s", err)
                     if not errors:
                         await self.async_set_unique_id(user_input[CONF_USERNAME].lower())
                         self._abort_if_unique_id_configured()
