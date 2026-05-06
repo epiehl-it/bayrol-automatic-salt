@@ -1,0 +1,12 @@
+{
+  "domain": "bayrol",
+  "name": "Bayrol Pool Access",
+  "version": "0.1.0",
+  "documentation": "https://github.com/epiehl/bayrol-ha",
+  "issue_tracker": "https://github.com/epiehl/bayrol-ha/issues",
+  "codeowners": ["@epiehl"],
+  "config_flow": true,
+  "iot_class": "cloud_push",
+  "requirements": ["beautifulsoup4>=4.12", "paho-mqtt>=2.0"],
+  "dependencies": []
+}

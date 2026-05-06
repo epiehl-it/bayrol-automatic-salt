@@ -1,0 +1,57 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Bayrol Pool Access",
+        "description": "Bitte gib deine Zugangsdaten zum Bayrol Pool Access Cloud-Portal ein. Die 4-stellige Settings-PIN ist optional und nur nötig, wenn du das Gerät (Modi, Boost, …) aus Home Assistant heraus steuern willst.",
+        "data": {
+          "username": "E-Mail-Adresse",
+          "password": "Passwort",
+          "settings_pin": "Settings-PIN (optional)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Bayrol Pool Access neu anmelden",
+        "data": {
+          "password": "Passwort"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "E-Mail oder Passwort ist falsch.",
+      "invalid_pin": "Die Settings-PIN wurde abgelehnt.",
+      "cannot_connect": "Bayrol Cloud nicht erreichbar.",
+      "no_controllers": "Anmeldung erfolgreich, aber keine Geräte auf dem Konto gefunden."
+    },
+    "abort": {
+      "already_configured": "Dieses Bayrol-Konto ist bereits eingerichtet.",
+      "reauth_successful": "Neuanmeldung erfolgreich."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Bayrol Optionen",
+        "data": {
+          "refresh_interval": "Aktualisierungsintervall (Sekunden)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ph": { "name": "pH" },
+      "redox": { "name": "Redox" },
+      "temperature": { "name": "Wassertemperatur" },
+      "salt": { "name": "Salz" },
+      "chlorine": { "name": "Chlor" }
+    },
+    "binary_sensor": {
+      "ph_alarm": { "name": "pH-Alarm" },
+      "redox_alarm": { "name": "Redox-Alarm" },
+      "temperature_alarm": { "name": "Temperaturalarm" },
+      "salt_alarm": { "name": "Salz-Alarm" },
+      "chlorine_alarm": { "name": "Chlor-Alarm" }
+    }
+  }
+}

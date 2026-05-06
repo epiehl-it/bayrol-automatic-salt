@@ -1,0 +1,57 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Bayrol Pool Access",
+        "description": "Enter your Bayrol Pool Access cloud credentials. The 4-digit settings PIN is optional and only needed if you want to control the device (modes, boost, …) from Home Assistant.",
+        "data": {
+          "username": "Email address",
+          "password": "Password",
+          "settings_pin": "Settings PIN (optional)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Bayrol Pool Access",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid email or password.",
+      "invalid_pin": "The settings PIN was rejected.",
+      "cannot_connect": "Could not reach the Bayrol cloud.",
+      "no_controllers": "Login succeeded but no controllers were found on this account."
+    },
+    "abort": {
+      "already_configured": "This Bayrol account is already configured.",
+      "reauth_successful": "Reauthentication successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Bayrol options",
+        "data": {
+          "refresh_interval": "Refresh interval (seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ph": { "name": "pH" },
+      "redox": { "name": "Redox" },
+      "temperature": { "name": "Water temperature" },
+      "salt": { "name": "Salt" },
+      "chlorine": { "name": "Chlorine" }
+    },
+    "binary_sensor": {
+      "ph_alarm": { "name": "pH alarm" },
+      "redox_alarm": { "name": "Redox alarm" },
+      "temperature_alarm": { "name": "Temperature alarm" },
+      "salt_alarm": { "name": "Salt alarm" },
+      "chlorine_alarm": { "name": "Chlorine alarm" }
+    }
+  }
+}
