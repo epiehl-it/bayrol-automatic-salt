@@ -21,8 +21,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    import aiohttp
     from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
-    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+    from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
     from .api import BayrolApiError, BayrolAuthError, BayrolClient, BayrolPinError
     from .const import (
@@ -36,7 +37,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     from .coordinator import BayrolCoordinator
 
-    session = async_get_clientsession(hass)
+    # Dedicated session with its own (dummy) cookie jar. HA's default shared
+    # session would mix Bayrol's PHPSESSID with cookies from other integrations
+    # and our login flow expects to fully control the session cookie via the
+    # explicit ``Cookie`` header.
+    session = async_create_clientsession(
+        hass, cookie_jar=aiohttp.DummyCookieJar()
+    )
     client = BayrolClient(
         session,
         entry.data[CONF_USERNAME],
@@ -47,8 +54,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await client.login()
         controllers = await client.get_controllers()
     except BayrolAuthError as err:
+        _LOGGER.error("Bayrol login failed: %s", err)
         raise ConfigEntryAuthFailed(str(err)) from err
     except BayrolApiError as err:
+        _LOGGER.error("Bayrol cloud unreachable during setup: %s", err)
+        raise ConfigEntryNotReady(str(err)) from err
+    except aiohttp.ClientError as err:
+        _LOGGER.error("Network error talking to Bayrol cloud: %s", err)
         raise ConfigEntryNotReady(str(err)) from err
 
     if not controllers:

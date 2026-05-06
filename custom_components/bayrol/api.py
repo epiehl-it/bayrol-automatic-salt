@@ -63,8 +63,13 @@ class BayrolClient:
         return self._phpsessid is not None
 
     async def login(self) -> None:
-        """Authenticate. Raises BayrolAuthError on bad credentials."""
-        self._session.cookie_jar.clear()
+        """Authenticate. Raises BayrolAuthError on bad credentials.
+
+        We deliberately do not call ``cookie_jar.clear()`` here — when the
+        client runs inside Home Assistant the aiohttp session is shared with
+        every other integration. Instead we manage the ``PHPSESSID`` cookie
+        ourselves through an explicit ``Cookie`` header on every request.
+        """
         self._phpsessid = None
 
         # Step 1: GET login page to obtain PHPSESSID + form fields.

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .api import BayrolApiError, BayrolAuthError, BayrolClient, BayrolPinError
 from .const import (
@@ -19,6 +20,8 @@ from .const import (
     DOMAIN,
     MIN_REFRESH_INTERVAL,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class BayrolConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -32,7 +35,12 @@ class BayrolConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            session = async_get_clientsession(self.hass)
+            # Same reasoning as in __init__.async_setup_entry: a private session
+            # with a dummy cookie jar avoids cross-talk with HA's shared
+            # aiohttp session.
+            session = async_create_clientsession(
+                self.hass, cookie_jar=aiohttp.DummyCookieJar()
+            )
             client = BayrolClient(
                 session,
                 user_input[CONF_USERNAME],
@@ -41,11 +49,14 @@ class BayrolConfigFlow(ConfigFlow, domain=DOMAIN):
             try:
                 await client.login()
                 controllers = await client.get_controllers()
-            except BayrolAuthError:
+            except BayrolAuthError as err:
+                _LOGGER.warning("Bayrol login rejected: %s", err)
                 errors["base"] = "invalid_auth"
-            except BayrolApiError:
+            except BayrolApiError as err:
+                _LOGGER.warning("Bayrol cloud unreachable: %s", err)
                 errors["base"] = "cannot_connect"
-            except aiohttp.ClientError:
+            except aiohttp.ClientError as err:
+                _LOGGER.warning("Network error talking to Bayrol cloud: %s", err)
                 errors["base"] = "cannot_connect"
             else:
                 if not controllers:
@@ -53,14 +64,15 @@ class BayrolConfigFlow(ConfigFlow, domain=DOMAIN):
                 else:
                     pin = (user_input.get(CONF_SETTINGS_PIN) or "").strip()
                     if pin:
-                        # Validate the PIN against the first controller — the PIN
-                        # is account-wide (Bayrol cloud uses the same code for
-                        # every controller on the user's account).
+                        # The PIN is account-wide; validating against the first
+                        # controller is enough.
                         try:
                             await client.authorize_settings(controllers[0].cid, pin)
-                        except BayrolPinError:
+                        except BayrolPinError as err:
+                            _LOGGER.warning("Bayrol PIN rejected: %s", err)
                             errors["base"] = "invalid_pin"
-                        except (BayrolApiError, aiohttp.ClientError):
+                        except (BayrolApiError, aiohttp.ClientError) as err:
+                            _LOGGER.warning("PIN validation failed: %s", err)
                             errors["base"] = "cannot_connect"
                     if not errors:
                         await self.async_set_unique_id(user_input[CONF_USERNAME].lower())
@@ -97,7 +109,9 @@ class BayrolConfigFlow(ConfigFlow, domain=DOMAIN):
         entry: ConfigEntry | None = self._get_reauth_entry()
 
         if user_input is not None and entry is not None:
-            session = async_get_clientsession(self.hass)
+            session = async_create_clientsession(
+                self.hass, cookie_jar=aiohttp.DummyCookieJar()
+            )
             client = BayrolClient(
                 session,
                 entry.data[CONF_USERNAME],
@@ -105,9 +119,11 @@ class BayrolConfigFlow(ConfigFlow, domain=DOMAIN):
             )
             try:
                 await client.login()
-            except BayrolAuthError:
+            except BayrolAuthError as err:
+                _LOGGER.warning("Bayrol re-login rejected: %s", err)
                 errors["base"] = "invalid_auth"
-            except (BayrolApiError, aiohttp.ClientError):
+            except (BayrolApiError, aiohttp.ClientError) as err:
+                _LOGGER.warning("Bayrol re-login network error: %s", err)
                 errors["base"] = "cannot_connect"
             else:
                 self.hass.config_entries.async_update_entry(
